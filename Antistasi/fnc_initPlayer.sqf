@@ -87,22 +87,6 @@ if (isMultiplayer) then {
 	[missionNamespace, "arsenalClosed", {[] spawn skillAdjustments;}] call BIS_fnc_addScriptedEventHandler;
 };
 
-if (!isMultiplayer and hayACEMedical) then {
-	player setVariable ["respawning",false];
-	player addEventHandler ["HandleDamage", {
-		if (player getVariable ["ACE_isUnconscious", false]) then {
-			[] spawn {
-                sleep 15;
-                if !(player getVariable ["inconsciente", false]) then {
-                    // put the player in the inconscious state where it can respawn with "SPACEBAR".
-                    player setDamage 0.9;
-                    [player] spawn inconsciente;
-                };
-            };
-		};
-	}];
-};
-
 [] execVM "reinitY.sqf";
 [] execVM "statistics.sqf";
 

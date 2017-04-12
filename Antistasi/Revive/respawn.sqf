@@ -8,7 +8,7 @@ if (_unit != _unit getVariable ["owner",_unit]) exitWith {};
 if (!isPlayer _unit) exitWith {};
 _unit setVariable ["respawning",true];
 
-if (!(isMultiplayer) and hayACEMedical) then {
+if (hayACEMedical) then {
 	[player, player] call ace_medical_fnc_treatmentAdvanced_fullHeal;
 };
 
@@ -32,6 +32,7 @@ if (isMultiplayer) exitWith {
 	_unit setVariable ["respawning",false];
 	_unit setDamage 1;
 };
+
 private ["_posicion","_tam","_roads","_road","_pos"];
 _posicion = getMarkerPos "respawn_west";
 if (_unit getVariable "inconsciente") then {_unit setVariable ["inconsciente",false,true]};

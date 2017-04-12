@@ -1,58 +1,40 @@
-private ["_unit","_distancia","_hayMedico","_medico","_units","_ayudando","_pidiendoAyuda"];
-_unit = _this select 0;
+params ["_unit", "_unitSide"];
 
-_distancia = 81;
-_haymedico = false;
-_medico = objNull;
+private _rangeConst = 150;
 
-_medItem = "FirstAidKit";
-if (hayACEMedical) then {_medItem = "ACE_fieldDressing"};
-//if (count _this == 1) then {_units = units group _unit} else {_units = units (_this select 1)};
-_units = units group _unit;
+private _distanceMin = _rangeConst;
+private _medico = objNull;
+private _medicoCurrent = _unit getVariable ["medic_from",objNull];
+
 {
-if (!isPlayer _x) then
-	{
-	if ([_x] call AS_fnc_getFIAUnitType == "Medic") then
-		{
-		if ((alive _x) and (_medItem in (items _x)) and (not (_x getVariable "inconsciente")) and (vehicle _x == _x) and (_x distance _unit < 81)) then
-			{
-			_hayMedico = true;
-			_ayudando = _x getVariable "ayudando";
-			if ((isNil "_ayudando") and (!(_x getVariable "rearming"))) then
-				{
-				_medico = _x;
-				_distancia = _x distance _unit;
-				};
-			};
-		};
-	};
-} forEach _units;
+	private _nearUnit = _x select 4;
+	private _nearUnitSide = _x select 2;
 
-if ((!_haymedico) or (_unit getVariable "inconsciente")) then
-	{
-	{
-	if (!isPlayer _x) then
-		{
-		if ([_x] call AS_fnc_getFIAUnitType != "Medic") then
-			{
-			if ((alive _x) and (_medItem in (items _x)) and (not (_x getVariable "inconsciente")) and (vehicle _x == _x) and (_x distance _unit < _distancia)) then
-				{
-				_ayudando = _x getVariable "ayudando";
-				if ((isNil "_ayudando") and (!(_x getVariable "rearming"))) then
-					{
-					_medico = _x;
-					_distancia = _x distance _unit;
-					};
-				};
+	private _medicIsBeazi = false;
+	private _medicTo = _nearUnit getVariable "medic_to";
 
-			};
-		};
-	} forEach _units;
+	if (!isNil "_medicTo" and !isNull _medicTo and _medicTo != _unit) then {
+		_medicIsBeazi = true;
 	};
 
-if (!isNull _medico) then
-	{
+	// try to find a viable medic closer
+	if (!_medicIsBeazi and
+		([_nearUnitSide, _unitSide] call BIS_fnc_sideIsFriendly) and
+		(_nearUnit != _unit) and
+		(_nearUnit != Petros) and
+		!(_nearUnit getVariable ["inconsciente", false]) and
+		!(isPlayer _nearUnit) and
+		(alive _nearUnit) and
+		([_nearUnit] call AS_fnc_getFIAUnitType == "Medic" or _nearUnit == sol_MED) and
+		((_nearUnit distance _unit) < _distanceMin ) ) then {
+		_distanceMin = _nearUnit distance _unit;
+		_medico = _nearUnit;
+	};
+} forEach (_unit nearTargets _rangeConst);
+
+// if it is a different medic and valid, make medic help him
+if (_medico != _medicoCurrent and (!isNull _medico)) then {
 	[_unit,_medico] spawn ayudar;
-	};
+};
 
 _medico

@@ -1,184 +1,244 @@
-private ["_unit","_grupo","_grupos","_isLeader","_dummyGroup","_bleedOut","_suicide","_saveVolume","_ayuda","_ayudado","_texto","_isPlayer","_camTarget","_saveVolumeVoice"];
-_unit = _this select 0;
-_unit setVariable ["inconsciente",true,true];
-_bleedOut = time + 300;//300
-_isPlayer = false;
-if (isPlayer _unit) then {_isPlayer = true};
-_fa = {_x == "FirstAidKit"} count items _unit;
-_mk = {_x == "Medikit"} count items _unit;
-//{_unit removeItems _x} foreach ["FirstAidKit","Medikit"];  <<<<<<<<<---------------------
+params ["_unit", "_part", "_injurer"];
 
-if (vehicle _unit != _unit) then
-	{
-	_unit action ["getOut", vehicle _unit];
-	if (_isPlayer) then
-		{
-		{
-		if ((!isPlayer _x) and (vehicle _x != _x) and (_x distance _unit < 50)) then {unassignVehicle _x; [_x] orderGetIn false}
-		} forEach units group _unit;
-		};
+private _surrenderRangeConst = 10;
+private _bleedOutConst = time + 360;
+private _camTimeForCommitConst = 8;
+private _helpTimeDelayConst = (random 20) + 20;
+
+private _unitSide = side _unit;
+_unit setCaptive true;
+
+// Max damage it can sustain while inconscious
+private _damAccumLimitConst = 65;
+if (_unitSide != east) then {_damAccumLimitConst = 25;};
+
+if (vehicle _unit != _unit) then {
+	_unit setVariable ["dieInVehicle",true];
+	if (!alive vehicle _unit) then {
+		_unit action ["getOut", vehicle _unit];
+		if (!isPlayer _unit) then {sleep 5;};
 	};
+} else {
+	_unit switchMove "AinjPpneMstpSnonWrflDnon";
+	_unit playActionNow "Unconscious";
+};
 
-if (_isPlayer) then
-	{
+_unit setFatigue 1;
+
+if (isPlayer _unit) then {
 	closeDialog 0;
-	respawnMenu = (findDisplay 46) displayAddEventHandler ["KeyDown",
-		{
-		_handled = false;
-		if (_this select 1 == 57) then
-			{
-			[player] spawn respawn;
-			};
-		_handled;
-		}];
-	_unit setCaptive true;
+
 	disableUserInput true;
 	titleText ["", "BLACK FADED"];
-	openMap false;
-	}
-else
-	{
-	{_unit disableAI _x} foreach ["TARGET","AUTOTARGET","MOVE","ANIM"];
-	_unit stop true;
-	if (isPlayer (leader group _unit)) then {_unit setCaptive true};
-	};
+	sleep 2;
+	titleText ["", "BLACK IN"];
+	disableUserInput false;
 
+	private _respawnMenu = (findDisplay 46) displayAddEventHandler ["KeyDown", {
+			if (_this select 1 == 57) then {
+				player setVariable ["suicide",true];
+				[localize "STR_RESPAWN_MESSAGE_SPACE_KEY",0,0,10,0,0,4] spawn bis_fnc_dynamicText;
+			};
+			false;
+	}];
 
-_unit switchMove "";
-_unit playActionNow "Unconscious";
-_unit setFatigue 1;
-sleep 2;
-if (_isPlayer) then
-	{
-	if (hayTFAR) then
-		{
+	if (!isNull _injurer) then {
+		if (isPlayer _injurer) then {
+			_textoKiller = format [localize "STR_RESPAWN_KILLER_IS_PLAYER", name _injurer];
+		} else {
+			_textoKiller = format [localize "STR_RESPAWN_KILLER_IS_BOT", name _injurer];
+		};
+	} else {
+		 _textoKiller = localize "STR_RESPAWN_KILLER_IS_HAPPY";
+	 };
+
+	_textoKiller = format[localize "STR_RESPAWN_MESSAGE_KILLER_NAME", _textoKiller];
+
+	if (hayTFAR) then {
 		_saveVolume = player getVariable ["tf_globalVolume", 1.0];
 		player setVariable ["tf_unable_to_use_radio", true, true];
 		player setVariable ["tf_globalVolume", 0];
 		_saveVolumeVoice = player getVariable ["tf_voiceVolume", 1.0];
 		if (random 100 < 20) then {player setVariable ["tf_voiceVolume", 0.0, true]};
-		};
-	titleText ["", "BLACK IN", 1];
-	disableUserInput false;
-	group _unit setCombatMode "YELLOW";
+	};
+
 	deadCam = "camera" camCreate (player modelToWorld [0,0,2]);
-	deadCam camSetTarget player;
-	_camTarget = player;
-	deadCam cameraEffect ["internal", "BACK"];
-	deadCam camCommit 0;
+}
+else {
+	{_unit disableAI _x;} foreach ["TARGET","AUTOTARGET","MOVE","ANIM"];
+	_unit stop true;
+};
+
+private _whileExit = _unit getVariable ["dieInVehicle",false];
+private _camTime = time - _camTimeForCommitConst;
+private _helpTime = time - _helpTimeDelayConst;
+_unit setVariable ["finishedoff",nil,true];
+private _ayuda = objNull;
+private _ayudaName = "";
+
+while { !_whileExit } do {
+	if (random 100 < 9) then {
+		playSound3D [(injuredSounds call BIS_fnc_selectRandom),_unit,false, getPosASL _unit, 1, 1, 50];
+	};
+	if (random 100 > 9) then {
+		_unit setCaptive true;
+	} else {
+		_unit setCaptive false;
 	};
 
-if (alive _unit) then {_unit switchMove "AinjPpneMstpSnonWrflDnon"};
+	if (isPlayer _unit) then {
+		if (isNull _ayuda) then {
+			_texto = _textoKiller + format [localize "STR_RESPAWN_INCONSCIENTE_CAMERA_TO_PLAYER", ceil (_bleedOutConst - time)];
+		} else {
+			_texto = _textoKiller + format [localize "STR_RESPAWN_INCONSCIENTE_CAMERA_TO_AYUDA", _ayudaName, ceil (_bleedOutConst - time)];
+		};
 
-while {(time < _bleedOut) and (damage _unit > 0.25) and (alive _unit) and (_unit getVariable "inconsciente") and (!(_unit getVariable "respawning"))} do
-	{
-	_tiempo = 1 + random 9;
-	if (random 10 < 1) then {playSound3D [(injuredSounds call BIS_fnc_selectRandom),_unit,false, getPosASL _unit, 1, 1, 50];};
-	if (_isPlayer) then
-		{
-		_ayudado = _unit getVariable "ayudado";
-		if (isNil "_ayudado") then
-			{
-			_ayuda = [_unit] call pedirAyuda;
-			if (isNull _ayuda) then
-				{
-				_texto = format ["<t size='0.6'>There is no AI near to help you.<t size='0.5'><br/>Hit SPACE to Respawn"];
-				_camTarget = player;
-				}
-			else
-				{
-				_texto = format ["<t size='0.6'>%1 is on the way to help you.<t size='0.5'><br/>Hit SPACE to Respawn",name _ayuda];
-				_camTarget = _ayuda;
-				};
-			}
-		else
-			{
-			if (!isNil "_ayuda") then
-				{
-				_texto = format ["<t size='0.6'>%1 is on the way to help you.<t size='0.5'><br/>Hit SPACE to Respawn",name _ayuda];
-				_camTarget = _ayuda;
-				}
-			else
-				{
-				_texto = "<t size='0.6'>Wait until you get assistance or<t size='0.5'><br/>Hit SPACE to Respawn";
-				};
-			};
-		[_texto,0,0,_tiempo,0,0,4] spawn bis_fnc_dynamicText;
-		if (_unit getVariable "respawning") exitWith {};
-		//disableUserInput false;
-		//titleText ["", "BLACK IN", _tiempo / 2];
-		//deadCam camSetPos [(position player select 0) + 5 - (random 10), (position player select 1) + 5 - (random 10), random 10 + 2];
-		deadCam camSetPos [(position player select 0), (position player select 1), (position player select 2) + 10];
-		deadCam camSetTarget _camTarget;
-		deadCam camCommit _tiempo;
-		sleep _tiempo;
-		}
-	else
-		{
-		if (isPlayer (leader group _unit)) then
-			{
-			if (autoheal) then
-				{
-				_ayudado = _unit getVariable "ayudado";
-				if (isNil "_ayudado") then {[_unit] call pedirAyuda;};
-				};
-			};
-		sleep _tiempo;
+		[_texto,0,0,1,0,0,4] spawn bis_fnc_dynamicText;
+
+		if ((_camTime + _camTimeForCommitConst) <= time) then {
+			_camTime = time;
+
+			if (isNull _ayuda)
+			then { _camTarget = player; }
+			else { _camTarget = _ayuda; };
+
+			deadCam camSetPos [
+				(position _camTarget select 0) + 12 - random 24,
+				(position _camTarget select 1) + 12 - random 24,
+				(position _camTarget select 2) + 6];
+			deadCam camSetTarget _camTarget;
+			deadCam cameraEffect ["internal", "BACK"];
+			deadCam camCommit _camTimeForCommitConst;
 		};
 	};
 
-if (_isPlayer) then
-	{
-	deadCam camSetPos position player;
-	deadCam camCommit 1;
 	sleep 1;
+
+	private _finishedoff = _unit getVariable "finishedoff";
+
+	if ((time > _bleedOutConst) or
+		(damage _unit < 0.26) or
+		(_unit getVariable ["suicide",false]) or
+		(_unit getVariable ["damAccum", 0] > _damAccumLimitConst) or
+		(!isNil "_finishedoff"))
+	then {
+		_whileExit = true;
+	};
+
+	// ask for help again
+	if (((time > (_helpTime + _helpTimeDelayConst)) or
+		 !(alive _ayuda) or
+		 (_ayuda getVariable["inconsciente",false])) and
+		!_whileExit) then {
+		_helpTime = time;
+		_ayuda = [_unit, _unitSide] call pedirAyuda;
+		_ayudaName = name _ayuda;
+	};
+};
+
+// if he suicided, accumulated damage or was in vehicle
+private _isDie = false;
+if ((time > _bleedOutConst) or
+	(_unit getVariable ["suicide",false]) or
+	(_unit getVariable ["damAccum", 0] > _damAccumLimitConst) or
+	(_unit getVariable ["dieInVehicle",false]) or
+	(!isNil "_finishedoff"))
+then {
+	_isDie = true;
+};
+
+if (!isNil "_finishedoff") then {
+	if (_finishedoff != _unit) then {
+		// if a player killed own unit => penalty.
+		if (isPlayer _finishedoff and (side _finishedoff == _unitSide)) then {
+			[_finishedoff,60] remoteExec ["castigo",_finishedoff]
+		};
+	};
+};
+
+// Explain the player how he died.
+if (isPlayer _unit) then {
+	(findDisplay 46) displayRemoveEventHandler ["KeyDown", _respawnMenu];
+
+	if (_unit getVariable ["suicide",false]) then {
+		_unit setVariable ["suicide",nil];
+	};
+
+	private _damAccumMessage = "";
+	if (_unit getVariable ["damAccum", 0] > _damAccumLimitConst) then {
+		_damAccumMessage = localize "STR_RESPAWN_MESSAGE_TORN_TO_PIECES";
+		[_textoKiller + _damAccumMessage,0,0,10,0,0,4] spawn bis_fnc_dynamicText;
+	};
+
+	if (!isNil "_finishedoff") then {
+		private _textoFinishedoffer = "";
+		if (!isNull _finishedoff) then {
+			if (isPlayer _finishedoff) then {
+				_textoFinishedoffer = format [localize "STR_RESPAWN_KILLER_IS_PLAYER", name _finishedoff];
+			} else {
+				_textoFinishedoffer = format [localize "STR_RESPAWN_KILLER_IS_BOT", name _finishedoff];
+			};
+		} else {
+			_textoFinishedoffer = localize "STR_RESPAWN_KILLER_IS_HAPPY";
+		};
+
+		_textoFinishedoffer = format[localize "STR_RESPAWN_MESSAGE_FINISHEDOFFER_NAME", _textoFinishedoffer];
+		[_textoKiller + _textoFinishedoffer + _damAccumMessage,0,0,10,0,0,4] spawn bis_fnc_dynamicText;
+	};
+
+	if (time > _bleedOutConst) then {
+		[_textoKiller + localize "STR_RESPAWN_MESSAGE_BLEEDOUT",0,0,10,0,0,4] spawn bis_fnc_dynamicText;
+	};
+
+	if (_unit getVariable ["dieInVehicle",false]) then {
+		[_textoKiller + localize "STR_RESPAWN_MESSAGE_DIE_IN_VEH" + _damAccumMessage,0,0,10,0,0,4] spawn bis_fnc_dynamicText;
+	} else {
+		deadCam camSetPos [
+			(position player select 0),
+			(position player select 1),
+			(position player select 2) + 1];
+		deadCam camSetTarget player;
+		deadCam camCommit 1;
+		sleep 1;
+	};
+
 	deadCam cameraEffect ["terminate", "BACK"];
 	camDestroy deadCam;
-	(findDisplay 46) displayRemoveEventHandler ["KeyDown", respawnMenu];
-	_unit setCaptive false;
-	if (hayTFAR) then
-		{
+
+	if (hayTFAR) then {
 		player setVariable ["tf_unable_to_use_radio", false, true];
 		player setVariable ["tf_globalVolume", _saveVolume];
 		player setVariable ["tf_voiceVolume", _saveVolumeVoice, true];
-		};
-	}
-else
-	{
-	_unit stop false;
-	_unit setCaptive false;
 	};
+};
 
-// for "_i" from 1 to _fa do {_unit addItem "FirstAidKit";};  <<<<<<<<<<<<--------------
-// for "_i" from 1 to _mk do {_unit addItem "Medikit";};  <<<<<<<<<<<<<<<<--------------
+_unit setCaptive false;
+_unit setVariable ["damAccum",nil,true];
 
-if (time > _bleedOut) exitWith
-	{
-	if (_isPlayer) then
-		{
-		_unit playMoveNow "AmovPpneMstpSnonWnonDnon_healed";
-		_ayudado = _unit getVariable "ayudado";
-		if (!isNil "_ayudado") then
-			{
-			_ayuda = [_unit] call pedirAyuda;
-			if (!isNull _ayuda) then {_unit setdamage 0.2} else {[_unit] call respawn};
-			}
-		else
-			{
-			[_unit] call respawn;
-			};
-		}
-	else
-		{
-		_unit setDamage 1;
-		};
-	};
-if (_unit getVariable "inconsciente") then {_unit setVariable ["inconsciente",false,true]};
-if (alive _unit) then
-	{
+if (_isDie) then {
+	_unit setDamage 1;
+} else {
 	_unit playMoveNow "AmovPpneMstpSnonWnonDnon_healed";
-	if (!_isPlayer) then
-		{
+
+	if (!isPlayer _unit) then {
 		{_unit enableAI _x} foreach ["TARGET","AUTOTARGET","MOVE","ANIM"];
+		_unit stop false;
+
+		// it does not surrender if the condition is fulfilled
+		_needSurrender = (_unitSide != side_blue);
+		{
+			if (((_x select 2) == _unitSide) and
+			     ((_x select 4) != _unit) and
+				 !((_x select 4) getVariable["inconsciente",false])) exitWith {
+				_needSurrender = false;
+			};
+		} forEach (_unit nearTargets _surrenderRangeConst);
+
+		if (_needSurrender) then {
+			[_unit] spawn surrenderAction;
 		};
 	};
+};
+
+_unit setVariable ["dieInVehicle",nil];
+_unit setVariable ["inconsciente",false,true];

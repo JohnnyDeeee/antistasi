@@ -40,7 +40,6 @@ hasRadio = compile preProcessFileLineNumbers "AI\hasRadio.sqf";
 accionArsenal = compile preProcessFileLineNumbers "Municion\accionArsenal.sqf";
 powerCheck = compile preProcessFileLineNumbers "powerCheck.sqf";
 AAFKilledEH = compile preProcessFileLineNumbers "AI\AAFKilledEH.sqf";
-handleDamageAAF = compile preProcessFileLineNumbers "Revive\handleDamageAAF.sqf";
 civVEHinit = compile preProcessFileLineNumbers "CREATE\civVEHinit.sqf";
 smokeCoverAuto = compile preProcessFileLineNumbers "AI\smokeCoverAuto.sqf";
 landThreatEval = compile preProcessFileLineNumbers "AI\landThreatEval.sqf";

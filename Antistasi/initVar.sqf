@@ -40,7 +40,6 @@ switchCom = false;  // Game will not auto assign Commander position to the highe
 "FIA_HQ" setMarkerPos (position petros);
 //minefieldMrk = [];
 //destroyedCities = [];
-autoHeal = false;
 allowPlayerRecruit = true;
 AAFpatrols = 0;//0
 
