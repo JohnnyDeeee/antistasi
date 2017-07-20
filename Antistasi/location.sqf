@@ -157,7 +157,7 @@ AS_fnc_location_add = {
     private _locations = call AS_fnc_location_all;
 
     if (_marker in _locations) exitWith {
-        diag_log format ["[AS] Error: location '%1' added but already exists. Called with type '%2'", _location, _type];
+        diag_log format ["[AS] Error: location '%1' added but already exists. Called with type '%2'", _marker, _type];
     };
 
     AS_location setVariable [_marker + "_position", getMarkerPos _marker, true];
@@ -210,7 +210,7 @@ AS_fnc_location_delete = {
     private _location = _this;
     private _all = AS_location getVariable "all";
     if !(_location in _all) exitWith {
-        diag_log format ["[AS] Error: location '%1' called for removal but it does not exist.", _x];
+        diag_log format ["[AS] Error: location '%1' called for removal but it does not exist.", _location];
     };
 
     // its properties
@@ -286,7 +286,7 @@ AS_fnc_location_despawn = {
     };
 
     if !(_location in (AS_location getVariable "all")) exitWith {
-        diag_log format ["[AS] Error: location '%1' called for spawn but it does not exist.", _x];
+        diag_log format ["[AS] Error: location '%1' called for spawn but it does not exist.", _location];
     };
     if (_forced) then {
         [_location,"forced_spawned",false] call AS_fnc_location_set;
@@ -370,7 +370,7 @@ AS_fnc_location_addCities = {
             // get all roads
             private _roads = [];
             {
-                _roadcon = roadsConnectedto _x;
+                private _roadcon = roadsConnectedto _x;
                 if (count _roadcon == 2) then {
                     _roads pushBack _x;
                 };
@@ -384,7 +384,7 @@ AS_fnc_location_addCities = {
             _position = getPos (_sortedRoads select 0);
 
             // creates hidden marker
-            _mrk = createmarker [_city, _position];
+            private _mrk = createmarker [_city, _position];
             _mrk setMarkerSize [_size, _size];
             _mrk setMarkerShape "ELLIPSE";
             _mrk setMarkerBrush "SOLID";
@@ -408,7 +408,7 @@ AS_fnc_location_addHills = {
         private _size = [_hill, _minSize] call AS_fnc_location_getNameSize;
         if !(_hill == "" or (_hill in _excluded)) then {
             // creates hidden marker
-            _mrk = createmarker [_hill, _position];
+            private _mrk = createmarker [_hill, _position];
             _mrk setMarkerSize [_size, _size];
             _mrk setMarkerShape "ELLIPSE";
             _mrk setMarkerBrush "SOLID";
@@ -539,7 +539,7 @@ AS_fnc_location_load = {
 
         // create hidden marker if it does not exist.
         if (getMarkerColor _location == "") then {
-            _mrk = createmarker [_location, _location call AS_fnc_location_position];
+            private _mrk = createmarker [_location, _location call AS_fnc_location_position];
             _mrk setMarkerSize [_location call AS_fnc_location_size, _location call AS_fnc_location_size];
             _mrk setMarkerShape "ELLIPSE";
             _mrk setMarkerBrush "SOLID";
@@ -556,8 +556,7 @@ AS_fnc_location_load = {
 
 AS_fnc_location_getNameSize = {
     params ["_name", "_min"];
-    private _size = 0;
-    _sizeX = getNumber (configFile >> "CfgWorlds" >> worldName >> "Names" >> _name >> "radiusA");
-    _sizeY = getNumber (configFile >> "CfgWorlds" >> worldName >> "Names" >> _name >> "radiusB");
+    private _sizeX = getNumber (configFile >> "CfgWorlds" >> worldName >> "Names" >> _name >> "radiusA");
+    private _sizeY = getNumber (configFile >> "CfgWorlds" >> worldName >> "Names" >> _name >> "radiusB");
     (_sizeX max _sizeY) max _min
 };
